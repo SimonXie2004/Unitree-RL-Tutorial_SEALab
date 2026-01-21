@@ -37,16 +37,88 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 )
 
 
+# @configclass
+# class RobotSceneCfg(InteractiveSceneCfg):
+#     """Configuration for the terrain scene with a legged robot."""
+
+#     # ground terrain
+#     terrain = TerrainImporterCfg(
+#         prim_path="/World/ground",
+#         terrain_type="generator",  # "plane", "generator"
+#         terrain_generator=COBBLESTONE_ROAD_CFG,  # None, ROUGH_TERRAINS_CFG
+#         max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
+#         collision_group=-1,
+#         physics_material=sim_utils.RigidBodyMaterialCfg(
+#             friction_combine_mode="multiply",
+#             restitution_combine_mode="multiply",
+#             static_friction=1.0,
+#             dynamic_friction=1.0,
+#         ),
+#         visual_material=sim_utils.MdlFileCfg(
+#             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+#             project_uvw=True,
+#             texture_scale=(0.25, 0.25),
+#         ),
+#         debug_vis=False,
+#     )
+#     # robots
+#     robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+#     # sensors
+#     height_scanner = RayCasterCfg(
+#         prim_path="{ENV_REGEX_NS}/Robot/torso_link",
+#         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+#         ray_alignment="yaw",
+#         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+#         debug_vis=False,
+#         mesh_prim_paths=["/World/ground"],
+#     )
+#     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
+#     # lights
+#     sky_light = AssetBaseCfg(
+#         prim_path="/World/skyLight",
+#         spawn=sim_utils.DomeLightCfg(
+#             intensity=750.0,
+#             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+#         ),
+#     )
+
+# XSY
+
+# court dimensions (meters)
+court_length = 13.4
+court_width = 6.1
+floor_thickness = 0.05
+line_width = 0.04
+net_height = 1.55
+net_thickness = 0.02
+
 @configclass
 class RobotSceneCfg(InteractiveSceneCfg):
-    """Configuration for the terrain scene with a legged robot."""
+    """Configuration for the badminton court scene with a legged robot."""
 
-    # ground terrain
+    # # ground - badminton court floor
+    # terrain = TerrainImporterCfg(
+    #     prim_path="/World/ground",
+    #     terrain_type="generator", # generator or plane
+    #     collision_group=-1,
+    #     physics_material=sim_utils.RigidBodyMaterialCfg(
+    #         friction_combine_mode="multiply",
+    #         restitution_combine_mode="multiply",
+    #         static_friction=1.0,
+    #         dynamic_friction=1.0,
+    #     ),
+    #     visual_material=sim_utils.PreviewSurfaceCfg(
+    #         diffuse_color=(0.1, 0.6, 0.1)  # Green court color
+    #     ),
+    #     debug_vis=False,
+    # )
+
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",  # "plane", "generator"
         terrain_generator=COBBLESTONE_ROAD_CFG,  # None, ROUGH_TERRAINS_CFG
-        max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
+        max_init_terrain_level=0,  # Start at terrain level 0 (center position)
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -61,6 +133,147 @@ class RobotSceneCfg(InteractiveSceneCfg):
         ),
         debug_vis=False,
     )
+
+    # court floor - static base
+    court_floor = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/CourtFloor",
+        spawn=sim_utils.CuboidCfg(
+            size=(court_length, court_width, floor_thickness),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,  # Make it static/kinematic
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1000.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(0.1, 0.6, 0.1)
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, 0.0, floor_thickness / 2.0)
+        ),
+    )
+
+    # court lines - left boundary (fixed on floor)
+    line_left = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/LineLeft",
+        spawn=sim_utils.CuboidCfg(
+            size=(court_length, line_width, 0.01),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,  # Make it static
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(1.0, 1.0, 1.0)  # White lines
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, court_width / 2.0, floor_thickness + 0.006)  # Slightly above floor
+        ),
+    )
+
+    # court lines - right boundary (fixed on floor)
+    line_right = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/LineRight",
+        spawn=sim_utils.CuboidCfg(
+            size=(court_length, line_width, 0.01),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(1.0, 1.0, 1.0)
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, -court_width / 2.0, floor_thickness + 0.006)
+        ),
+    )
+
+    # court lines - top boundary (fixed on floor)
+    line_top = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/LineTop",
+        spawn=sim_utils.CuboidCfg(
+            size=(line_width, court_width, 0.01),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(1.0, 1.0, 1.0)
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(court_length / 2.0, 0.0, floor_thickness + 0.006)
+        ),
+    )
+
+    # court lines - bottom boundary (fixed on floor)
+    line_bottom = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/LineBottom",
+        spawn=sim_utils.CuboidCfg(
+            size=(line_width, court_width, 0.01),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(1.0, 1.0, 1.0)
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(-court_length / 2.0, 0.0, floor_thickness + 0.006)
+        ),
+    )
+
+    # center line (fixed on floor)
+    center_line = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/CenterLine",
+        spawn=sim_utils.CuboidCfg(
+            size=(line_width, court_width, 0.01),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(1.0, 1.0, 1.0)
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, 0.0, floor_thickness + 0.006)
+        ),
+    )
+
+    # badminton net (fixed in position)
+    net = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Net",
+        spawn=sim_utils.CuboidCfg(
+            size=(net_thickness, court_width, net_height),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=True,  # Make it static
+                disable_gravity=True,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=5.0),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=(0.2, 0.2, 0.2)  # Dark gray net
+            ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.0, 0.0, net_height / 2.0 + floor_thickness)
+        ),
+    )
+
     # robots
     robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
@@ -74,12 +287,13 @@ class RobotSceneCfg(InteractiveSceneCfg):
         mesh_prim_paths=["/World/ground"],
     )
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
+
     # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
         spawn=sim_utils.DomeLightCfg(
-            intensity=750.0,
-            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+            intensity=2500.0,
+            color=(0.9, 0.9, 0.9),
         ),
     )
 
@@ -126,7 +340,8 @@ class EventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            # XSY: offset to avoid spawning inside the net
+            "pose_range": {"x": (1.0, 1.0), "y": (2.0, 2.0), "yaw": (0.0, 0.0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -359,7 +574,7 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the locomotion velocity-tracking environment."""
 
     # Scene settings
-    scene: RobotSceneCfg = RobotSceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: RobotSceneCfg = RobotSceneCfg(num_envs=4096, env_spacing=25)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
@@ -400,7 +615,10 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
 class RobotPlayEnvCfg(RobotEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 32
-        self.scene.terrain.terrain_generator.num_rows = 2
-        self.scene.terrain.terrain_generator.num_cols = 10
+        self.scene.num_envs = 1
+        # Use minimal terrain grid for play mode
+        self.scene.terrain.terrain_generator.num_rows = 1
+        self.scene.terrain.terrain_generator.num_cols = 1
+        # Ensure robot spawns at center (origin)
+        self.scene.terrain.max_init_terrain_level = 0
         self.commands.base_velocity.ranges = self.commands.base_velocity.limit_ranges

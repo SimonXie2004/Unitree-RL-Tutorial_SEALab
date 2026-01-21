@@ -126,6 +126,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     agent_cfg.max_iterations = (
         args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
     )
+    
+    # agent_cfg.max_iterations = 30000
+    print(f"num_envs: {env_cfg.scene.num_envs}")
+    print(f"max_iterations: {agent_cfg.max_iterations}")
+    # input()
 
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here
