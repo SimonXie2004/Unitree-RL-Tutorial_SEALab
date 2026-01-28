@@ -21,69 +21,8 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG
 from unitree_rl_lab.tasks.locomotion import mdp
 
-COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
-    size=(8.0, 8.0),
-    border_width=20.0,
-    num_rows=9,
-    num_cols=21,
-    horizontal_scale=0.1,
-    vertical_scale=0.005,
-    slope_threshold=0.75,
-    difficulty_range=(0.0, 1.0),
-    use_cache=False,
-    sub_terrains={
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.5),
-    },
-)
-
-
-# @configclass
-# class RobotSceneCfg(InteractiveSceneCfg):
-#     """Configuration for the terrain scene with a legged robot."""
-
-#     # ground terrain
-#     terrain = TerrainImporterCfg(
-#         prim_path="/World/ground",
-#         terrain_type="generator",  # "plane", "generator"
-#         terrain_generator=COBBLESTONE_ROAD_CFG,  # None, ROUGH_TERRAINS_CFG
-#         max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
-#         collision_group=-1,
-#         physics_material=sim_utils.RigidBodyMaterialCfg(
-#             friction_combine_mode="multiply",
-#             restitution_combine_mode="multiply",
-#             static_friction=1.0,
-#             dynamic_friction=1.0,
-#         ),
-#         visual_material=sim_utils.MdlFileCfg(
-#             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-#             project_uvw=True,
-#             texture_scale=(0.25, 0.25),
-#         ),
-#         debug_vis=False,
-#     )
-#     # robots
-#     robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-#     # sensors
-#     height_scanner = RayCasterCfg(
-#         prim_path="{ENV_REGEX_NS}/Robot/torso_link",
-#         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
-#         ray_alignment="yaw",
-#         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
-#         debug_vis=False,
-#         mesh_prim_paths=["/World/ground"],
-#     )
-#     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
-#     # lights
-#     sky_light = AssetBaseCfg(
-#         prim_path="/World/skyLight",
-#         spawn=sim_utils.DomeLightCfg(
-#             intensity=750.0,
-#             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
-#         ),
-#     )
-
-# XSY
+# scene config
+scene_size = 15.0
 
 # court dimensions (meters)
 court_length = 13.4
@@ -97,28 +36,11 @@ net_thickness = 0.02
 class RobotSceneCfg(InteractiveSceneCfg):
     """Configuration for the badminton court scene with a legged robot."""
 
-    # # ground - badminton court floor
-    # terrain = TerrainImporterCfg(
-    #     prim_path="/World/ground",
-    #     terrain_type="generator", # generator or plane
-    #     collision_group=-1,
-    #     physics_material=sim_utils.RigidBodyMaterialCfg(
-    #         friction_combine_mode="multiply",
-    #         restitution_combine_mode="multiply",
-    #         static_friction=1.0,
-    #         dynamic_friction=1.0,
-    #     ),
-    #     visual_material=sim_utils.PreviewSurfaceCfg(
-    #         diffuse_color=(0.1, 0.6, 0.1)  # Green court color
-    #     ),
-    #     debug_vis=False,
-    # )
-
+    # Use simple plane terrain - Isaac Lab will automatically generate env_origins based on env_spacing
+    # This ensures env_origins form a perfect grid matching the {ENV_REGEX_NS} pattern
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        terrain_type="generator",  # "plane", "generator"
-        terrain_generator=COBBLESTONE_ROAD_CFG,  # None, ROUGH_TERRAINS_CFG
-        max_init_terrain_level=0,  # Start at terrain level 0 (center position)
+        terrain_type="plane",  # Use "plane" for uniform grid, "generator" for varied terrain
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -126,10 +48,8 @@ class RobotSceneCfg(InteractiveSceneCfg):
             static_friction=1.0,
             dynamic_friction=1.0,
         ),
-        visual_material=sim_utils.MdlFileCfg(
-            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-            project_uvw=True,
-            texture_scale=(0.25, 0.25),
+        visual_material=sim_utils.PreviewSurfaceCfg(
+            diffuse_color=(0.8, 0.8, 0.8)  # Light gray ground
         ),
         debug_vis=False,
     )
@@ -341,7 +261,7 @@ class EventCfg:
         mode="reset",
         params={
             # XSY: offset to avoid spawning inside the net
-            "pose_range": {"x": (1.0, 1.0), "y": (2.0, 2.0), "yaw": (0.0, 0.0)},
+            "pose_range": {"x": (1.0, 1.0), "y": (2.0, 2.0), "z": (floor_thickness, floor_thickness)},
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -560,13 +480,13 @@ class TerminationsCfg:
     base_height = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.2})
     bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": 0.8})
 
+# xsy: disable curriculm; will fix later
+# @configclass
+# class CurriculumCfg:
+#     """Curriculum terms for the MDP."""
 
-@configclass
-class CurriculumCfg:
-    """Curriculum terms for the MDP."""
-
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
-    lin_vel_cmd_levels = CurrTerm(mdp.lin_vel_cmd_levels)
+#     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+#     lin_vel_cmd_levels = CurrTerm(mdp.lin_vel_cmd_levels)
 
 
 @configclass
@@ -574,7 +494,7 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the locomotion velocity-tracking environment."""
 
     # Scene settings
-    scene: RobotSceneCfg = RobotSceneCfg(num_envs=4096, env_spacing=25)
+    scene: RobotSceneCfg = RobotSceneCfg(num_envs=9, env_spacing=scene_size)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
@@ -583,7 +503,7 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
-    curriculum: CurriculumCfg = CurriculumCfg()
+    # curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self):
         """Post initialization."""
@@ -601,24 +521,22 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.contact_forces.update_period = self.sim.dt
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
 
-        # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
-        # this generates terrains with increasing difficulty and is useful for training
-        if getattr(self.curriculum, "terrain_levels", None) is not None:
-            if self.scene.terrain.terrain_generator is not None:
-                self.scene.terrain.terrain_generator.curriculum = True
-        else:
-            if self.scene.terrain.terrain_generator is not None:
-                self.scene.terrain.terrain_generator.curriculum = False
+        # # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
+        # # this generates terrains with increasing difficulty and is useful for training
+        # if getattr(self.curriculum, "terrain_levels", None) is not None:
+        #     if self.scene.terrain.terrain_generator is not None:
+        #         self.scene.terrain.terrain_generator.curriculum = True
+        # else:
+        #     if self.scene.terrain.terrain_generator is not None:
+        #         self.scene.terrain.terrain_generator.curriculum = False
 
 
 @configclass
 class RobotPlayEnvCfg(RobotEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 1
-        # Use minimal terrain grid for play mode
-        self.scene.terrain.terrain_generator.num_rows = 1
-        self.scene.terrain.terrain_generator.num_cols = 1
-        # Ensure robot spawns at center (origin)
-        self.scene.terrain.max_init_terrain_level = 0
+        self.scene.num_envs = 9
+        # When using plane terrain, we don't need to configure terrain_generator
+        # Isaac Lab will automatically generate env_origins based on num_envs and env_spacing
+        # This ensures perfect grid alignment with {ENV_REGEX_NS} assets
         self.commands.base_velocity.ranges = self.commands.base_velocity.limit_ranges
