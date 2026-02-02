@@ -30,6 +30,7 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument("--pause", action="store_true", default=False, help="Start with simulation paused to adjust initial pose.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -158,6 +159,18 @@ def main():
     if version("rsl-rl-lib").startswith("2.3."):
         obs, _ = env.get_observations()
     timestep = 0
+    
+    # pause simulation at the start if requested
+    if args_cli.pause:
+        print("\n" + "="*60)
+        print("[INFO] Simulation PAUSED at start.")
+        print("       You can now adjust the initial pose in Isaac Sim.")
+        print("       Press SPACE or the Play button to resume.")
+        print("="*60 + "\n")
+        from isaaclab.sim import SimulationContext
+        sim = SimulationContext.instance()
+        sim.pause()
+    
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
