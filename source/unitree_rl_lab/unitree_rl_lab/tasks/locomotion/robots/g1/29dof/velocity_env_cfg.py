@@ -19,6 +19,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG
+from unitree_rl_lab.assets.robots.unitree import UNITREE_MODEL_DIR
 from unitree_rl_lab.tasks.locomotion import mdp
 
 # scene config
@@ -191,6 +192,32 @@ class RobotSceneCfg(InteractiveSceneCfg):
         ),
         init_state=AssetBaseCfg.InitialStateCfg(
             pos=(0.0, 0.0, net_height / 2.0 + floor_thickness)
+        ),
+    )
+    
+    # badminton - dynamic rigid body
+    badminton = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Badminton",
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=f"{UNITREE_MODEL_DIR}/badminton/badminton.usd",
+            scale=(0.2, 0.2, 0.2),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                disable_gravity=False,  # Enable gravity
+                retain_accelerations=False,
+                linear_damping=0.1,  # Add slight damping for realistic motion
+                angular_damping=0.1,
+                max_linear_velocity=100.0,  # Reasonable limits for badminton
+                max_angular_velocity=100.0,
+                max_depenetration_velocity=10.0,
+            ), 
+            mass_props=sim_utils.MassPropertiesCfg(mass=0.0055),  # 5.5 grams (standard badminton weight)
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            # visual_material=sim_utils.PreviewSurfaceCfg(
+            #     diffuse_color=(1.0, 0.647, 0.0)
+            # ),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(2.0, 2.0, 1.5),  # Spawn above ground, offset from robot
         ),
     )
 
